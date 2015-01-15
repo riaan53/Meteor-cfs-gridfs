@@ -51,7 +51,8 @@ FS.Store.GridFS = function(name, options) {
       // care of - Otherwise we create new files instead of overwriting
       var key = {
         _id: null,
-        filename: null
+        filename: null,
+        size: null,
       };
 
       // If we're passed a fileObj, we retrieve the _id and filename from it.
@@ -59,24 +60,36 @@ FS.Store.GridFS = function(name, options) {
         var info = fileObj._getInfo(name, {updateFileRecordFirst: false});
         key._id = info.key || null;
         key.filename = info.name || fileObj.name({updateFileRecordFirst: false}) || (fileObj.collectionName + '-' + fileObj._id);
+        key.size = fileObj.size();
       }
 
       // If key._id is null at this point, createWriteStream will let GridFS generate a new ID
       return key;
     },
     createReadStream: function(fileKey, options) {
+      //Get range from options otherwise init to full file if no range is requested
+      var start = 0, end = fileKey.size;
+      if (options && options.start) {
+        start = options.start;
+      }
+      if (options && options.end) {
+        end = options.end;
+      }
       // Init GridFS
       var gfs = new Grid(self.db, mongodb);
 
       return gfs.createReadStream({
         _id: new ObjectID(fileKey._id),
-        root: gridfsName
+        root: gridfsName,
+        range: {
+          startPos: start,
+          endPos: end
+        }
       });
 
     },
     createWriteStream: function(fileKey, options) {
       options = options || {};
-
       // Init GridFS
       var gfs = new Grid(self.db, mongodb);
 
